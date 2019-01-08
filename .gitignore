@@ -1,0 +1,13 @@
+# Maven #
+/target/
+
+# Eclipse #
+.*
+bin
+
+# IDEA #
+*.iml
+
+capromotionmessages
+
+!.gitignore
