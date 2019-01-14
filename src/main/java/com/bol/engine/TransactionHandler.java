@@ -2,6 +2,9 @@ package com.bol.engine;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.scheduling.annotation.Scheduled;
+
+import java.util.function.Consumer;
 
 /**
  * Optimistic distributed engine for mongodb
@@ -24,14 +27,26 @@ import org.slf4j.LoggerFactory;
  */
 public class TransactionHandler<OBJECTID> {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionHandler.class);
-    private static final long DEFAULT_TTLMS = 300_000;
 
-    final ActionStore<OBJECTID> preCommitStore;
-    final ActionStore<OBJECTID> failedStore;
+    final ActionStore<OBJECTID, RollbackableAction<OBJECTID>> preCommitStore;
+    final ActionStore<OBJECTID, RollbackableAction<OBJECTID>> failedRollbackStore;
 
-    public TransactionHandler(ActionStore<OBJECTID> preCommitStore, ActionStore<OBJECTID> failedStore) {
+    Consumer<RollbackableAction<OBJECTID>> rollbackLogger = action -> LOG.warn("Rollback failed for " + action);
+    long rollbackTtlMs = 300_000;
+
+    public TransactionHandler(ActionStore<OBJECTID, RollbackableAction<OBJECTID>> preCommitStore, ActionStore<OBJECTID, RollbackableAction<OBJECTID>> failedRollbackStore) {
         this.preCommitStore = preCommitStore;
-        this.failedStore = failedStore;
+        this.failedRollbackStore = failedRollbackStore;
+    }
+
+    public TransactionHandler<OBJECTID> withRollbackLogger(Consumer<RollbackableAction<OBJECTID>> rollbackLogger) {
+        this.rollbackLogger = rollbackLogger;
+        return this;
+    }
+
+    public TransactionHandler<OBJECTID> withRollbackTtlMs(long rollbackTtlMs) {
+        this.rollbackTtlMs = rollbackTtlMs;
+        return this;
     }
 
     // FIXME: add a registerAndRunAsync() method for direct run
@@ -74,14 +89,15 @@ public class TransactionHandler<OBJECTID> {
         rollback(forObject, actions, Integer.MAX_VALUE);
     }
 
-    void rollback(OBJECTID forObject, Iterable<RollbackableAction<OBJECTID>> actions, int executed) {
+    private void rollback(OBJECTID forObject, Iterable<RollbackableAction<OBJECTID>> actions, int executed) {
         try {
             for (RollbackableAction<OBJECTID> action : actions) {
                 try {
                     action.rollback();
                 } catch (Exception e) {
-                    action.ttlMs = System.currentTimeMillis() + DEFAULT_TTLMS;
-                    failedStore.put(action);
+                    action.ttlMs = System.currentTimeMillis() + rollbackTtlMs;
+                    failedRollbackStore.put(action);
+                    rollbackLogger.accept(action);
                 }
 
                 if (--executed == 0) break;
@@ -91,9 +107,21 @@ public class TransactionHandler<OBJECTID> {
         }
     }
 
+    @Scheduled(initialDelay = 15000, fixedDelay = 15000)
+    public void retry() {
+        failedRollbackStore.retry(System.currentTimeMillis(), failedAction -> {
+            try {
+                failedAction.rollback();
+                failedRollbackStore.remove(failedAction);
+            } catch (Exception e) {
+                rollbackLogger.accept(failedAction);
+            }
+        });
+    }
+
     public void cleanup(long now) {
         preCommitStore.cleanup(now);
-        failedStore.cleanup(now);
+        failedRollbackStore.cleanup(now);
     }
 }
 

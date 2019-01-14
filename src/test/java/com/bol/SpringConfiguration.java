@@ -36,6 +36,6 @@ public abstract class SpringConfiguration extends AbstractMongoConfiguration {
 
     @Bean
     public TransactionHandler<String> transactionHandler(MongoTemplate mongoTemplate) {
-        return new TransactionHandler<>(new MongoActionStore(mongoTemplate, "transaction"), new InMemoryActionStore<>());
+        return new TransactionHandler<>(new InMemoryActionStore<>(), new MongoActionStore(mongoTemplate, "transaction"));
     }
 }

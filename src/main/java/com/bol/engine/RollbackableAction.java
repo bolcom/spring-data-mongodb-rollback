@@ -1,8 +1,6 @@
 package com.bol.engine;
 
 public abstract class RollbackableAction<OBJECTID> {
-    public static final String MONGO_FOR_OBJECT = "forObject";
-    public static final String MONGO_TTLMS = "ttlMs";
 
     public long ttlMs;
     public final OBJECTID forObject;
@@ -12,5 +10,14 @@ public abstract class RollbackableAction<OBJECTID> {
     }
 
     abstract public void action();
+
     abstract public void rollback();
+
+    @Override
+    public String toString() {
+        return getClass().getCanonicalName() + "{" +
+                "ttlMs=" + ttlMs +
+                ", forObject=" + forObject +
+                '}';
+    }
 }
