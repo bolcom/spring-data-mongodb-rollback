@@ -1,7 +1,6 @@
-package com.bol.store;
+package com.bol.mongo;
 
 import com.bol.engine.ActionStore;
-import com.bol.engine.MongoRollbackableAction;
 import com.bol.engine.RollbackableAction;
 import org.springframework.data.domain.Sort;
 import org.springframework.data.mongodb.core.MongoTemplate;
@@ -12,8 +11,8 @@ import org.springframework.data.util.CloseableIterator;
 import java.util.List;
 import java.util.function.Consumer;
 
-import static com.bol.engine.MongoRollbackableAction.MONGO_FOR_OBJECT;
-import static com.bol.engine.MongoRollbackableAction.MONGO_TTLMS;
+import static com.bol.mongo.MongoRollbackableAction.MONGO_FOR_OBJECT;
+import static com.bol.mongo.MongoRollbackableAction.MONGO_TTLMS;
 import static org.springframework.data.mongodb.core.query.Criteria.where;
 import static org.springframework.data.mongodb.core.query.Query.query;
 

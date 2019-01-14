@@ -25,32 +25,32 @@ import java.util.function.Consumer;
  * <p>
  * 4. schedule cleanup job that remove stale locks
  */
-public class TransactionHandler<OBJECTID> {
+public class TransactionHandler<OBJECTID, ACTION extends RollbackableAction<OBJECTID>> {
     private static final Logger LOG = LoggerFactory.getLogger(TransactionHandler.class);
 
-    final ActionStore<OBJECTID, RollbackableAction<OBJECTID>> preCommitStore;
-    final ActionStore<OBJECTID, RollbackableAction<OBJECTID>> failedRollbackStore;
+    final ActionStore<OBJECTID, ACTION> preCommitStore;
+    final ActionStore<OBJECTID, ACTION> failedRollbackStore;
 
     Consumer<RollbackableAction<OBJECTID>> rollbackLogger = action -> LOG.warn("Rollback failed for " + action);
     long rollbackTtlMs = 300_000;
 
-    public TransactionHandler(ActionStore<OBJECTID, RollbackableAction<OBJECTID>> preCommitStore, ActionStore<OBJECTID, RollbackableAction<OBJECTID>> failedRollbackStore) {
+    public TransactionHandler(ActionStore<OBJECTID, ACTION> preCommitStore, ActionStore<OBJECTID, ACTION> failedRollbackStore) {
         this.preCommitStore = preCommitStore;
         this.failedRollbackStore = failedRollbackStore;
     }
 
-    public TransactionHandler<OBJECTID> withRollbackLogger(Consumer<RollbackableAction<OBJECTID>> rollbackLogger) {
+    public TransactionHandler<OBJECTID, ACTION> withRollbackLogger(Consumer<RollbackableAction<OBJECTID>> rollbackLogger) {
         this.rollbackLogger = rollbackLogger;
         return this;
     }
 
-    public TransactionHandler<OBJECTID> withRollbackTtlMs(long rollbackTtlMs) {
+    public TransactionHandler<OBJECTID, ACTION> withRollbackTtlMs(long rollbackTtlMs) {
         this.rollbackTtlMs = rollbackTtlMs;
         return this;
     }
 
     // FIXME: add a registerAndRunAsync() method for direct run
-    public void register(RollbackableAction<OBJECTID> action) {
+    public void register(ACTION action) {
         preCommitStore.put(action);
     }
 
@@ -58,7 +58,7 @@ public class TransactionHandler<OBJECTID> {
         int executed = 0;
         boolean done = false;
 
-        Iterable<RollbackableAction<OBJECTID>> actions = preCommitStore.get(forObject);
+        Iterable<ACTION> actions = preCommitStore.get(forObject);
 
         try {
             for (RollbackableAction<OBJECTID> action : actions) {
@@ -85,13 +85,13 @@ public class TransactionHandler<OBJECTID> {
     }
 
     public void rollback(OBJECTID forObject) {
-        Iterable<RollbackableAction<OBJECTID>> actions = preCommitStore.get(forObject);
+        Iterable<ACTION> actions = preCommitStore.get(forObject);
         rollback(forObject, actions, Integer.MAX_VALUE);
     }
 
-    private void rollback(OBJECTID forObject, Iterable<RollbackableAction<OBJECTID>> actions, int executed) {
+    private void rollback(OBJECTID forObject, Iterable<ACTION> actions, int executed) {
         try {
-            for (RollbackableAction<OBJECTID> action : actions) {
+            for (ACTION action : actions) {
                 try {
                     action.rollback();
                 } catch (Exception e) {
@@ -107,6 +107,7 @@ public class TransactionHandler<OBJECTID> {
         }
     }
 
+    // FIXME: make delay+rate configurable
     @Scheduled(initialDelay = 15000, fixedDelay = 15000)
     public void retry() {
         failedRollbackStore.retry(System.currentTimeMillis(), failedAction -> {
@@ -119,6 +120,7 @@ public class TransactionHandler<OBJECTID> {
         });
     }
 
+    // FIXME: call cleanup
     public void cleanup(long now) {
         preCommitStore.cleanup(now);
         failedRollbackStore.cleanup(now);

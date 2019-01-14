@@ -1,8 +1,8 @@
 package com.bol;
 
-import com.bol.engine.RollbackableAction;
+import com.bol.mongo.MongoRollbackableAction;
 
-public class ClaimCoupon extends RollbackableAction<String> {
+public class ClaimCoupon extends MongoRollbackableAction<String> {
 
     final String couponId;
     final boolean requested_availability;

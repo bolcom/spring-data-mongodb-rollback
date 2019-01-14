@@ -1,8 +1,7 @@
 package com.bol;
 
-import com.bol.engine.ActionStore;
-import com.bol.engine.RollbackableAction;
-import com.bol.store.MongoActionStore;
+import com.bol.mongo.MongoActionStore;
+import com.bol.mongo.MongoRollbackableAction;
 import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -29,7 +28,7 @@ public class SystemTest {
         action.ttlMs = 345;
         actionStore.put(action);
 
-        Iterable<RollbackableAction<String>> order1 = actionStore.get("order1");
+        Iterable<MongoRollbackableAction<String>> order1 = actionStore.get("order1");
 
         System.err.println(order1);
 

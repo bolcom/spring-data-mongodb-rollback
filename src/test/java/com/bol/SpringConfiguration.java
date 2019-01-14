@@ -1,8 +1,9 @@
 package com.bol;
 
 import com.bol.engine.TransactionHandler;
-import com.bol.store.InMemoryActionStore;
-import com.bol.store.MongoActionStore;
+import com.bol.mongo.MongoActionStore;
+import com.bol.mongo.MongoRollbackableAction;
+import com.bol.memory.InMemoryActionStore;
 import com.mongodb.MongoClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
@@ -35,7 +36,7 @@ public abstract class SpringConfiguration extends AbstractMongoConfiguration {
     }
 
     @Bean
-    public TransactionHandler<String> transactionHandler(MongoTemplate mongoTemplate) {
+    public TransactionHandler<String, MongoRollbackableAction<String>> transactionHandler(MongoTemplate mongoTemplate) {
         return new TransactionHandler<>(new InMemoryActionStore<>(), new MongoActionStore(mongoTemplate, "transaction"));
     }
 }

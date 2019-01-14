@@ -1,5 +1,6 @@
-package com.bol.engine;
+package com.bol.mongo;
 
+import com.bol.engine.RollbackableAction;
 import org.springframework.data.annotation.Id;
 
 public abstract class MongoRollbackableAction<OBJECTID> extends RollbackableAction<OBJECTID> {
